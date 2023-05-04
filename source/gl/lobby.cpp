@@ -1,13 +1,17 @@
 #include <gl/lobby.hpp>
 
+#include <gl/core.hpp>
+#include <gl/database.hpp>
+#include <gl/utility.hpp>
 #include <dpp/cluster.h>
 #include <dpp/colors.h>
 #include <utility>
 
 namespace gl
 {
-    lobby::lobby(dpp::cluster& bot, dpp::slashcommand_t source_command)
-        : bot_{ bot }
+    lobby::lobby(gl::core& core, dpp::slashcommand_t source_command)
+        : bot_{ core.bot() }
+        , database_{ core.database() }
         , source_command_{ std::move(source_command) }
         , id_{ ++lobby_id }
     {
@@ -18,61 +22,64 @@ namespace gl
     {
         make_message_ = dpp::message();
         make_message_.channel_id = source_command_.command.channel_id;
-        make_message_.content = "**Make a lobby**";
+        make_message_.content = "# Make a lobby";
+        make_message_.set_flags(dpp::message_flags::m_ephemeral);
 
-        make_message_.add_component(
+        // game options
+        auto comp_options =
             dpp::component().
-                        add_component(
-                        dpp::component().set_label("Max slots: " + std::to_string(max_slots_)).
-                        set_style(dpp::cos_primary).
-                        set_id(make_id("test"))
-                    )
+                     add_component(dpp::component().set_label("Game options...").
+                        set_emoji("⚙️").
+                        set_style(dpp::cos_success).
+                        set_id(make_id(lobby_commands::game_options))
+                    ).add_component(dpp::component().set_label("Lobby options...").
+                        set_emoji("⚙️").
+                        set_style(dpp::cos_success).
+                        set_id(make_id(lobby_commands::lobby_options))
+                    );
+
+        // presets
+        int presets_count = 0;
+        auto comp_select_presets = dpp::component().set_type(dpp::cot_selectmenu).
+                    set_label("Select preset...").
+                    set_placeholder("Select preset...").
+                    set_id(make_id(lobby_commands::preset));
+
+        const auto& preset = ndb::models::gl_model.lobby_preset;
+        for (auto& line : ndb::query<dbs::gl>() << (ndb::get() << ndb::source(preset) << ndb::filter(preset.guild_id == int64_t(guild_id()))))
+        {
+            ++presets_count;
+            bool selected = false;
+            auto preset_id = line[preset.id];
+            std::string preset_name = line[preset.name];
+            std::string description = line[preset.game];
+            description += line[preset.map];
+            if (preset_id == preset_id_) selected = true;
+            comp_select_presets.add_select_option(dpp::select_option(line[preset.name], std::to_string(preset_id), description).set_emoji("📁").set_default(selected));
+        }
+
+        auto comp_preset =
+        dpp::component().add_component(comp_select_presets);
+
+        // pre added players
+        auto comp_players =
+        dpp::component().add_component(
+            dpp::component().set_type(dpp::cot_user_selectmenu).
+            set_placeholder("Add players").
+            set_max_values(25).
+            set_id(make_id(lobby_commands::players))
         );
 
-        // visibility
-        make_message_.add_component(
-                dpp::component().add_component(
-                    dpp::component().set_type(dpp::cot_selectmenu).
-                    set_label("Visibility").
-                    set_placeholder("Visibility").
-                    add_select_option(dpp::select_option("Public", "public", "Players can join the lobby").set_emoji("😄")).
-                    add_select_option(dpp::select_option("Private", "private", "Players are manually added").set_emoji("🙂")).
-                    set_default_value("private").
-                    set_id(make_id(lobby_commands::visibility))
-                )
+        // pinged roles
+        auto comp_ping_roles =
+        dpp::component().add_component(
+            dpp::component().set_type(dpp::cot_role_selectmenu).
+            set_placeholder("Roles to ping").
+            set_max_values(25).
+            set_id(make_id(lobby_commands::pinged_roles))
         );
 
-        // begin time
-        make_message_.add_component(
-                dpp::component().add_component(
-                    dpp::component().set_type(dpp::cot_selectmenu).
-                    set_placeholder("Begin time").
-                    add_select_option(dpp::select_option("17H","value1","description1").set_emoji("😄")).
-                    add_select_option(dpp::select_option("21H","value2","description2").set_emoji("🙂")).
-                    add_select_option(dpp::select_option("Custom...", "custom", "").set_emoji("🙂")).
-                    set_id(make_id(lobby_commands::begin_time))
-                )
-        );
-
-        make_message_.add_component(
-                dpp::component().add_component(
-                    dpp::component().set_type(dpp::cot_user_selectmenu).
-                    set_placeholder("Add player").
-                    set_max_values(25).
-                    set_id(make_id(lobby_commands::players))
-                )
-        );
-
-        make_message_.add_component(
-                dpp::component().add_component(
-                    dpp::component().set_type(dpp::cot_role_selectmenu).
-                    set_placeholder("Roles to ping").
-                    set_max_values(25).
-                    set_id(make_id(lobby_commands::pinged_roles))
-                )
-        );
-
-        make_message_.add_component(
+        auto comp_buttons =
             dpp::component().
                      add_component(dpp::component().set_label("Make").
                         set_style(dpp::cos_success).
@@ -82,15 +89,23 @@ namespace gl
                         set_style(dpp::cos_danger).
                         set_id(make_id(lobby_commands::cancel))
                     ).add_component(
-                        dpp::component().set_label("Max slots: " + std::to_string(max_slots_)).
+                        dpp::component().set_label("Save preset...").
                         set_style(dpp::cos_primary).
-                        set_id(make_id("max_slots"))
-                    )
-        );
+                        set_id(make_id(lobby_commands::button_preset_save))
+                    ).add_component(
+                        dpp::component().set_label("Delete preset").
+                        set_style(dpp::cos_primary).
+                        set_id(make_id(lobby_commands::button_preset_delete))
+                    );
 
 
+        if (presets_count > 0) make_message_.add_component(comp_preset);
+        make_message_.add_component(comp_options);
+        make_message_.add_component(comp_players);
+        make_message_.add_component(comp_ping_roles);
+        make_message_.add_component(comp_buttons);
     }
-    
+
     void lobby::build_view_message()
     {
         auto mid = view_message_.id;
@@ -98,65 +113,95 @@ namespace gl
         view_message_.id = mid;
         view_message_.channel_id = source_command_.command.channel_id;
 
-        std::string description = R"(
-**Host:** <@354033167407120394>
-**Begin Time:** 21H00
-**Duration:** 21H00
-**Pinged:** <@&1090579377328246844>
-)";
+        std::string date = settings.date;
+        if (date == gl::current_date()) date = "Today";
+
+        std::string description = "- :video_game: **" + settings.game + (settings.game_mod.empty() ? "" : " [" + settings.game_mod + "]") + "**\n";
+        description += "- :clock10: **" + date + "** at **" + settings.begin_time + (settings.end_time.empty() ? "" : "** to **" + settings.end_time) + "**\n";
+        if (!settings.map.empty()) description += "- :map: **" + settings.map + "**\n";
+        if (!settings.host.empty()) description += "- :bust_in_silhouette: **<@" + settings.host + ">**\n";
 
         std::string primary_players;
         std::string secondary_players;
-        int i = 0;
+        int primary_players_count = 0;
+        int secondary_players_count = 0;
         for (const auto& player : players_)
         {
-            ++i;
-            if (player.availability == player_availability::primary) primary_players += std::to_string(i) + ". " + player.str() + "\n";
-            else secondary_players += std::to_string(i) + ". " + player.str() + "\n";
+            if (player.priority == player_priority::primary)
+            {
+                primary_players += std::to_string(primary_players_count + 1) + ". " + player.str() + "\n";
+                ++primary_players_count;
+            }
+            else
+            {
+                secondary_players += std::to_string(secondary_players_count + 1) + ". " + player.str() + "\n";
+                ++secondary_players_count;
+            }
+        }
+        for (int i = 0; i < settings.min_slots - primary_players_count; ++i)
+        {
+            primary_players += std::to_string(primary_players_count + i + 1) + ". <available slot>\n";
         }
 
+
+        std::string fill_status = primary_players_count >= settings.min_slots ? ":white_check_mark:" : ":question:";
+        std::string lobby_access = settings.access == lobby_access::private_ ? ":lock:" : "";
+
         dpp::embed embed = dpp::embed().
-        set_color(dpp::colors::wrx_blue).
-        set_title("Among Us Lobby").
-        set_author("GameLobby", "https://github.com/arkena00/", "https://avatars.githubusercontent.com/u/4370057?v=4").
+        set_color(dpp::colors::blue_green).
+        set_title(settings.game + " Lobby " + lobby_access).
+        //set_author("Among Us Lobby", "", "https://logos-world.net/wp-content/uploads/2021/08/Among-Us-Logo.png").
+        //set_author("GameLobby", "https://github.com/arkena00/", "https://avatars.githubusercontent.com/u/4370057?v=4").
         set_description(description).
-        set_thumbnail("https://dpp.dev/DPP-Logo.png").
+        set_thumbnail(settings.game_logo).
         add_field(
-               ":white_check_mark: Primary",
+               fill_status + " Primary (" + std::to_string(primary_players_count) + "/" + std::to_string(settings.max_slots) + ")",
                primary_players,
                true
         ).
         add_field(
-                "Secondary",
+                ":recycle: Secondary (" + std::to_string(secondary_players_count) + ")",
                 secondary_players,
                 true
         ).
-        set_footer(dpp::embed_footer().set_text("GameLobby v0.1.0\nJoin as secondary if you are not sure to be present").set_icon("https://dpp.dev/DPP-Logo.png")).
+        set_footer(dpp::embed_footer().
+                                      set_text("GameLobby v1.0.0\nJoin as secondary if you are not sure to be present").
+                                      set_icon("https://cdn.discordapp.com/app-icons/1100304468244975677/e27284e425960d09cabaa43c30107e57.png?size=256")).
         set_timestamp(time(0));
 
         view_message_.add_embed(embed);
 
-        view_message_.add_component(
-            dpp::component().
-            add_component(dpp::component().set_label("Join").set_emoji(":amongus:", 1085702291404902483, true).
-                set_style(dpp::cos_success).
-                set_id(make_id("join"))).
-            add_component(dpp::component().set_label("Join as secondary").
-                set_style(dpp::cos_primary).
-                set_id(make_id("join_secondary"))).
-            add_component(
-                dpp::component().set_label("Leave").
-                set_style(dpp::cos_danger).
-                set_id(make_id("leave")))
-         );
+        std::string str_ping_roles;
+        for (const auto& role: settings.ping_roles)
+        {
+            str_ping_roles += "<@&" + role + ">";
+        }
+        view_message_.set_content(str_ping_roles);
 
-        view_message_.add_component(
-            dpp::component().add_component(
-                dpp::component().set_label("Remind me").set_emoji("🕙").
-                set_style(dpp::cos_secondary).
-                set_id(make_id("remind"))
-            )
-        );
+        if (settings.access == lobby_access::public_)
+        {
+            view_message_.add_component(
+                dpp::component().
+                add_component(dpp::component().set_label("Join").set_emoji("🎮").
+                    set_style(dpp::cos_success).
+                    set_id(make_id("join"))).
+                add_component(dpp::component().set_label("Join(secondary)").
+                    set_style(dpp::cos_primary).
+                    set_id(make_id("join_secondary"))).
+                add_component(
+                    dpp::component().set_label("Leave").
+                    set_style(dpp::cos_danger).
+                    set_id(make_id("leave")))
+             );
+
+            view_message_.add_component(
+                dpp::component().add_component(
+                    dpp::component().set_label("Remind me").set_emoji("🕙").
+                    set_style(dpp::cos_secondary).
+                    set_id(make_id("remind"))
+                )
+            );
+        }
     }
 
     void lobby::refresh()
@@ -165,7 +210,7 @@ namespace gl
         bot_.message_edit(view_message());
     }
 
-    std::string lobby::make_id(const std::string& id)
+    std::string lobby::make_id(const std::string& id) const
     {
         return std::to_string(id_) + "|" + id;
     }
@@ -182,9 +227,36 @@ namespace gl
         });
     }
 
+    void lobby::load_preset(int64_t preset_id)
+    {
+        database_.load(preset_id, *this);
+        preset_id_ = preset_id;
+        build_make_message();
+    }
+
+    void lobby::delete_preset()
+    {
+        if (preset_id_ == -1) return;
+
+        database_.delete_preset(preset_id_, *this);
+        build_make_message();
+    }
+
+    void lobby::save_preset(const std::string& name)
+    {
+        preset_id_ = database_.save(name, *this);
+        build_make_message();
+    }
+
+    void lobby::update_preset()
+    {
+        if (preset_id_ == -1) return;
+        database_.update(preset_id_, *this);
+    }
+
     void lobby::join(gl::player player)
     {
-        if (players_.end() != std::find_if(players_.begin(), players_.end(), [&player](const auto& p) { return p.id == player.id; })) return;
+        players_.erase(std::remove_if(players_.begin(), players_.end(), [player](const auto& p) { return p.id == player.id; }), players_.end());
         players_.emplace_back(player);
         refresh();
     }
@@ -195,14 +267,6 @@ namespace gl
         refresh();
     }
 
-    void lobby::set_max_slots(int n)
-    {
-        max_slots_ = n;
-        build_make_message();
-    }
-    void lobby::set_visibility(lobby_visibility visibility) { visibility_ = visibility; }
-
     dpp::snowflake lobby::id() const { return id_; }
     dpp::snowflake lobby::guild_id() const { return source_command_.command.guild_id; }
-    lobby_visibility lobby::visibility() const { return visibility_; }
 } // gl

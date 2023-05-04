@@ -1,9 +1,10 @@
 add_requires("dpp")
+add_requires("sqlite3")
 
 target("main")
     set_kind("binary")
     set_languages("c++23")
     add_files("source/main.cpp")
     add_files("source/**.cpp")
-    add_includedirs("include")
-    add_packages("dpp")
+    add_includedirs("include", "third_party/ndb/include", "third_party/ndb/third_party/boost")
+    add_packages("dpp", "sqlite3")

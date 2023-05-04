@@ -5,11 +5,11 @@
 
 namespace gl
 {
-    enum class player_availability { primary, secondary };
+    enum class player_priority { primary, secondary };
     struct player
     {
         dpp::snowflake id;
-        player_availability availability = player_availability::primary;
+        player_priority priority = player_priority::primary;
 
         std::string str() const
         {
