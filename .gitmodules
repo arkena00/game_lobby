@@ -1,3 +1,0 @@
-[submodule "third_party/ndb"]
-	path = third_party/ndb
-	url = https://github.com/arkena00/ndb.git
