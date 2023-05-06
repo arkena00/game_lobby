@@ -30,7 +30,7 @@ namespace gl
             for (int i = 0; i < core_.lobbies().size(); ++i)
             {
                 auto& lobby = core_.lobbies()[i];
-                auto gmt_now = gl::gmt_time(std::chrono::system_clock::now(), lobby->settings.gmt);
+                auto gmt_now = gl::gmt_time(std::chrono::utc_clock::now(), lobby->settings.gmt);
 
                 // delete old lobby
                 if (lobby->has_expired())
@@ -42,7 +42,7 @@ namespace gl
 
                 for (const auto& player : lobby->players())
                 {
-                    if (player->notify_time == std::chrono::system_clock::time_point{}) continue;
+                    if (player->notify_time == std::chrono::utc_clock::time_point{}) continue;
 
                     auto notify_time = gl::gmt_time(player->notify_time, lobby->settings.gmt);
 
