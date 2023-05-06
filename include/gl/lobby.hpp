@@ -15,39 +15,39 @@ namespace gl
 
     namespace lobby_commands
     {
-        static constexpr std::string game_options = "game_options";
-        static constexpr std::string lobby_options = "lobby_options";
-        static constexpr std::string preset = "preset";
-        static constexpr std::string access = "access";
-        static constexpr std::string players = "players";
-        static constexpr std::string pinged_roles = "pinged_roles";
-        static constexpr std::string make = "make";
-        static constexpr std::string cancel = "cancel";
-        static constexpr std::string button_preset_delete = "bp_delete";
-        static constexpr std::string button_preset_save = "bp_save";
-        static constexpr std::string action_preset_save = "ap_save";
+        static std::string game_options = "game_options";
+        static std::string lobby_options = "lobby_options";
+        static std::string preset = "preset";
+        static std::string access = "access";
+        static std::string players = "players";
+        static std::string pinged_roles = "pinged_roles";
+        static std::string make = "make";
+        static std::string cancel = "cancel";
+        static std::string button_preset_delete = "bp_delete";
+        static std::string button_preset_save = "bp_save";
+        static std::string action_preset_save = "ap_save";
 
         //
 
-        static constexpr std::string join = "join";
-        static constexpr std::string join_secondary = "join_secondary";
-        static constexpr std::string leave = "leave";
-        static constexpr std::string notify_options = "notify_options";
+        static std::string join = "join";
+        static std::string join_secondary = "join_secondary";
+        static std::string leave = "leave";
+        static std::string notify_options = "notify_options";
 
         //
 
-        static constexpr std::string game = "game";
-        static constexpr std::string game_logo = "game_logo";
-        static constexpr std::string game_mod = "game_mod";
-        static constexpr std::string game_map = "game_map";
+        static std::string game = "game";
+        static std::string game_logo = "game_logo";
+        static std::string game_mod = "game_mod";
+        static std::string game_map = "game_map";
 
-        static constexpr std::string slots = "slots";
-        static constexpr std::string begin_time = "begin_time";
-        static constexpr std::string end_time = "end_time";
-        static constexpr std::string host = "host";
+        static std::string slots = "slots";
+        static std::string begin_time = "begin_time";
+        static std::string end_time = "end_time";
+        static std::string host = "host";
 
-        static constexpr std::string notify_timer = "notify_timer";
-        static constexpr std::string notify_primary = "notify_primary";
+        static std::string notify_timer = "notify_timer";
+        static std::string notify_primary = "notify_primary";
     } // lobby_commands
 
     struct lobby_settings
