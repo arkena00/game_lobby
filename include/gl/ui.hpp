@@ -61,16 +61,43 @@ namespace ui
                             .set_required(true) );
         modal.add_row();
 
-        std::string default_time = lobby_ptr->settings.begin_time + (lobby_ptr->settings.end_time.empty() ? "" : "-" + lobby_ptr->settings.end_time);
-        modal.add_component( text_field(gl::lobby_commands::time, "Time", default_time)
-                            .set_placeholder("ex: 21:00 or 21:00-23:00")
+        auto str_begin_datetime = gl::to_string(gl::gmt_time(lobby_ptr->settings.begin_time, lobby_ptr->settings.gmt));
+        auto str_end_datetime = gl::to_string(gl::gmt_time(lobby_ptr->settings.end_time, lobby_ptr->settings.gmt));
+        if (lobby_ptr->settings.begin_time == std::chrono::utc_clock::time_point{})
+            str_begin_datetime = gl::to_string(gl::gmt_time(std::chrono::utc_clock::now(), lobby_ptr->settings.gmt));
+        if (lobby_ptr->settings.end_time == std::chrono::utc_clock::time_point{}) str_end_datetime = "";
+
+        modal.add_component( text_field(gl::lobby_commands::begin_time, "Begin time", str_begin_datetime)
+                            .set_placeholder("ex: 24/01/2023 21:00")
                             .set_required(true) );
         modal.add_row();
-        modal.add_component( text_field(gl::lobby_commands::date, "Date (default: today)", lobby_ptr->settings.date)
-                            .set_placeholder("ex: 24/01/23") );
+        modal.add_component( text_field(gl::lobby_commands::end_time, "End time (optional)", str_end_datetime)
+                            .set_placeholder("ex: 24/01/2023 21:00") );
         modal.add_row();
         modal.add_component( text_field(gl::lobby_commands::host, "Host ID", lobby_ptr->settings.host)
                             .set_placeholder("Right click on a user -> copy user id") );
+
+        return modal;
+    }
+
+    auto make_notify_options(gl::lobby* lobby_ptr, const std::string& modal_id)
+    {
+        dpp::interaction_modal_response modal(gl::make_id(lobby_ptr, gl::lobby_commands::notify_options), "");
+
+        auto text_field = [&modal, lobby_ptr](auto&& command, auto&& label, const std::string& default_value = "", int max_input = 32)
+        {
+            return dpp::component().
+                set_id(command).
+                set_label(label).
+                set_type(dpp::cot_text).
+                set_default_value(default_value).
+                set_min_length(1).
+                set_max_length(max_input).
+                set_text_style(dpp::text_short);
+        };
+        modal.add_component( text_field(gl::lobby_commands::notify_timer, "Minutes before lobby start", "5").set_required(true) );
+        modal.add_row();
+        modal.add_component( text_field(gl::lobby_commands::notify_primary, "Moved to primary (y = yes | n = no)", "n", 1) );
 
         return modal;
     }

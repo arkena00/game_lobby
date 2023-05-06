@@ -7,12 +7,22 @@ namespace gl
 {
     core::core(const std::string& token)
         : bot_{ token, dpp::i_default_intents | dpp::i_message_content }
+        , reminder_{ *this }
     {
+        database().load_guilds(configs_);
+
         bot_.on_log(dpp::utility::cout_logger());
 
-        bot_.on_ready([&](const dpp::ready_t & event) {
-            if (dpp::run_once<struct register_bot__commands>()) {
-                bot_.global_command_create(dpp::slashcommand("gl", "GameLobby creation menu", bot_.me.id));
+        bot_.on_ready([&](const dpp::ready_t& event) {
+            if (dpp::run_once<struct register_bot__commands>())
+            {
+                bot_.global_command_create(dpp::slashcommand("gl", "Make lobby", bot_.me.id));
+
+                dpp::slashcommand config("glconfig", "Configure", bot_.me.id);
+                config.add_option(
+                        dpp::command_option(dpp::co_integer, "gmt", "Enter your time zone", true)
+                        );
+                bot_.global_command_create(config);
             }
         });
 
@@ -20,8 +30,19 @@ namespace gl
             if (event.command.get_command_name() == "gl")
             {
                 lobbies_.emplace_back(std::make_unique<gl::lobby>(*this, event));
+                lobbies_.back()->settings.gmt = configs_[event.command.guild_id].gmt;
 
                 event.reply(lobbies_.back()->make_message());
+            }
+            else if (event.command.get_command_name() == "glconfig")
+            {
+                auto gmt = std::get<int64_t>(event.get_parameter("gmt"));
+                database().save_config(event.command.guild_id, gmt);
+
+                dpp::message message;
+                message.set_flags(dpp::message_flags::m_ephemeral);
+                message.content = "Time zone set to GMT+" + std::to_string(gmt);
+                event.reply(message);
             }
         });
 
@@ -58,7 +79,12 @@ namespace gl
             if (auto* lobby_ptr = lobby(event.command.guild_id, lobby_id))
             {
                 if (command_id == lobby_commands::make) lobby_ptr->make();
-                else if (command_id == lobby_commands::cancel) event.delete_original_response();
+                else if (command_id == lobby_commands::notify_options)
+                {
+                    auto modal = ui::make_notify_options(lobby_ptr, event.custom_id);
+                    return event.dialog(modal);
+                }
+                // else if (command_id == lobby_commands::cancel) event.delete_original_response();
                 else if (command_id == lobby_commands::button_preset_save)
                 {
                     dpp::interaction_modal_response modal(gl::make_id(lobby_ptr, gl::lobby_commands::action_preset_save), "");
@@ -81,7 +107,7 @@ namespace gl
                     return;
                 }
                 else if (command_id == lobby_commands::join) lobby_ptr->join(gl::player{ event.command.usr.id });
-                else if (command_id == lobby_commands::join_secondary) lobby_ptr->join(gl::player{ event.command.usr.id , player_priority::secondary});
+                else if (command_id == lobby_commands::join_secondary) lobby_ptr->join(gl::player{ event.command.usr.id , player_group::secondary});
                 else if (command_id == lobby_commands::leave) lobby_ptr->leave(event.command.usr.id);
                 else if (command_id == lobby_commands::game_options)
                 {
@@ -135,15 +161,17 @@ namespace gl
                         }
                         if (field.custom_id == lobby_commands::slots)
                             gl::parse_slots(std::get<std::string>(field.value), lobby_ptr->settings);
-                        else if (field.custom_id == lobby_commands::time)
-                            gl::parse_time(std::get<std::string>(field.value), lobby_ptr->settings);
-                        else if (field.custom_id == lobby_commands::date)
+                        else if (field.custom_id == lobby_commands::begin_time)
                         {
-                            lobby_ptr->settings.date = std::get<std::string>(field.value);
-                            if (lobby_ptr->settings.date.empty())
-                            {
-                                lobby_ptr->settings.date = gl::current_date();
-                            }
+                            // remove gmt, store as UTC
+                            auto gmt = configs_[event.command.guild_id].gmt;
+                            lobby_ptr->settings.begin_time = gl::gmt_time(gl::to_time_point(std::get<std::string>(field.value)), -gmt);
+                        }
+                        else if (field.custom_id == lobby_commands::end_time)
+                        {
+                            // remove gmt, store as UTC
+                            auto gmt = configs_[event.command.guild_id].gmt;
+                            lobby_ptr->settings.end_time = gl::gmt_time(gl::to_time_point(std::get<std::string>(field.value)), -gmt);
                         }
                         else if (field.custom_id == lobby_commands::host)
                             lobby_ptr->settings.host = std::get<std::string>(field.value);
@@ -152,6 +180,25 @@ namespace gl
                 else if (command_id == lobby_commands::action_preset_save)
                 {
                      if (!event.components.empty()) lobby_ptr->save_preset(std::get<std::string>(event.components[0].components[0].value));
+                }
+                else if (command_id == lobby_commands::notify_options)
+                {
+                    int notify_time = 5;
+                    bool notify_primary = false;
+                    for (const auto& comp : event.components)
+                    {
+                        if (comp.components.empty()) continue;
+                        const auto& field = comp.components[0];
+
+                        if (field.custom_id == lobby_commands::notify_timer)
+                            notify_time = std::stoi(std::get<std::string>(field.value));
+                        else if (field.custom_id == lobby_commands::notify_primary)
+                            notify_primary = std::get<std::string>(field.value) == "y" ? true : false;
+                    }
+                     //auto reminder_primary = std::stoi(std::get<std::string>(event.components[0].components[1].value));
+                     reminder_.add(lobby_ptr, event.command, notify_time, notify_primary);
+
+                     return event.reply();
                 }
 
                 lobby_ptr->update_preset();
@@ -163,7 +210,24 @@ namespace gl
     
     void core::run()
     {
+        std::thread t{ [this]{ reminder_.run(); } };
+        t.detach();
+
         bot_.start(dpp::st_wait);
+    }
+
+    void core::notify(dpp::snowflake user_id, const dpp::message& message)
+    {
+        bot_.direct_message_create(user_id, message);
+    }
+
+    void core::del_lobby(uint64_t lobby_id)
+    {
+        auto it = std::find_if(lobbies_.begin(), lobbies_.end(), [lobby_id](const auto& l) { return l->id() == lobby_id; });
+        if (it == lobbies_.end()) return;
+
+        std::iter_swap(it, lobbies_.end() - 1);
+        lobbies_.pop_back();
     }
 
     gl::lobby* core::lobby(dpp::snowflake guild_id, dpp::snowflake lobby_id)

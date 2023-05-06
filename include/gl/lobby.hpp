@@ -11,6 +11,7 @@ namespace gl
     class database;
 
     enum class lobby_access{ public_, private_ };
+    enum class lobby_state{ idle, active, inactive };
 
     namespace lobby_commands
     {
@@ -31,6 +32,7 @@ namespace gl
         static constexpr std::string join = "join";
         static constexpr std::string join_secondary = "join_secondary";
         static constexpr std::string leave = "leave";
+        static constexpr std::string notify_options = "notify_options";
 
         //
 
@@ -40,9 +42,12 @@ namespace gl
         static constexpr std::string game_map = "game_map";
 
         static constexpr std::string slots = "slots";
-        static constexpr std::string date = "date";
-        static constexpr std::string time = "time";
+        static constexpr std::string begin_time = "begin_time";
+        static constexpr std::string end_time = "end_time";
         static constexpr std::string host = "host";
+
+        static constexpr std::string notify_timer = "notify_timer";
+        static constexpr std::string notify_primary = "notify_primary";
     } // lobby_commands
 
     struct lobby_settings
@@ -52,14 +57,14 @@ namespace gl
         std::string game_mod;
         int min_slots = 2;
         int max_slots = 10;
-        std::string date;
-        std::string begin_time;
-        std::string end_time;
+        std::chrono::utc_clock::time_point begin_time;
+        std::chrono::utc_clock::time_point end_time;
         std::string map;
         std::string host;
         lobby_access access = lobby_access::public_;
         std::vector<std::string> ping_roles;
         std::vector<dpp::snowflake> players;
+        int gmt = 0;
     };
 
     class lobby
@@ -76,23 +81,23 @@ namespace gl
         void load_preset(int64_t lobby_id);
         void save_preset(const std::string& name);
         void update_preset();
-        void save();
 
         void join(gl::player);
         void leave(dpp::snowflake);
 
-        void set_access(lobby_access access);
-        void set_begin_time(const std::string& begin_time);
-        void set_max_slots(int max_slots);
+        [[nodiscard]] dpp::snowflake id() const;
+        [[nodiscard]] dpp::snowflake guild_id() const;
+        [[nodiscard]] gl::player* player(dpp::snowflake) const;
+        std::vector<std::unique_ptr<gl::player>>& players();
+        const std::chrono::utc_clock::time_point& make_time() const;
+        lobby_state state() const;
+        bool has_expired() const;
 
-        dpp::snowflake id() const;
-        dpp::snowflake guild_id() const;
-
-        const dpp::message& make_message() const { return make_message_; }
-        const dpp::message& view_message() const { return view_message_; }
+        [[nodiscard]] const dpp::message& make_message() const { return make_message_; }
+        [[nodiscard]] const dpp::message& view_message() const { return view_message_; }
 
         void refresh();
-        std::string make_id(const std::string&) const;
+        [[nodiscard]] std::string make_id(const std::string&) const;
 
         lobby_settings settings;
 
@@ -100,13 +105,16 @@ namespace gl
         static inline uint64_t lobby_id = 0;
 
         gl::database& database_;
+        gl::core& core_;
         dpp::cluster& bot_;
         dpp::slashcommand_t source_command_;
         dpp::message make_message_;
         dpp::message view_message_;
 
         uint64_t id_;
-        std::vector<gl::player> players_;
+        std::vector<std::unique_ptr<gl::player>> players_;
         int64_t preset_id_ = -1;
+        lobby_state state_ = lobby_state::idle;
+        std::chrono::utc_clock::time_point make_time_;
     };
 } // gl

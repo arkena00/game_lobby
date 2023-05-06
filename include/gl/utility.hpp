@@ -2,10 +2,17 @@
 
 #include <gl/lobby.hpp>
 #include <string>
+#include <iomanip>
 #include <iostream>
 
 namespace gl
 {
+    inline std::string to_string(const std::chrono::utc_clock::time_point& time_point, const std::string& format = "%d/%m/%Y %H:%M")
+    {
+        if (time_point == std::chrono::utc_clock::time_point{}) return "";
+        return std::vformat("{:" + format + "}", std::make_format_args(time_point));
+    }
+
     inline std::string to_string(lobby_access access)
     {
         switch (access)
@@ -15,15 +22,17 @@ namespace gl
         }
     }
 
-    inline std::string current_date()
+    inline auto to_time_point(const std::string& str_time, const std::string& format = "%d/%m/%Y %H:%M")
     {
-        time_t now = time(nullptr);
-        struct tm tstruct{};
-        char buf[32];
-        localtime_s(&tstruct, &now);
-        strftime(buf, sizeof(buf), "%d/%m/%Y", &tstruct);
+        std::stringstream ss{ str_time };
+        std::chrono::utc_clock::time_point time_point;
+        ss >> std::chrono::parse(format, time_point);
+        return time_point;
+    }
 
-        return buf;
+    inline auto gmt_time(const std::chrono::utc_clock::time_point& time_point, int gmt = 0)
+    {
+        return time_point + std::chrono::hours{ gmt };
     }
 
     inline std::string make_id(lobby* lobby_ptr, const std::string& id)
@@ -53,13 +62,13 @@ namespace gl
 
         if (sep_pos != std::string::npos)
         {
-            settings.begin_time = str_time.substr(0, sep_pos);
-            settings.end_time = str_time.substr(sep_pos + 1);
+            //settings.begin_time = str_time.substr(0, sep_pos);
+            //settings.end_time = str_time.substr(sep_pos + 1);
         }
         else
         {
-            settings.begin_time = str_time;
-            settings.end_time = "";
+            //settings.begin_time = str_time;
+            //settings.end_time = "";
         }
     }
 } // gl

@@ -10,9 +10,11 @@
 namespace gl
 {
     lobby::lobby(gl::core& core, dpp::slashcommand_t source_command)
-        : bot_{ core.bot() }
+        : core_{ core }
+        , bot_{ core.bot() }
         , database_{ core.database() }
         , source_command_{ std::move(source_command) }
+        , make_time_ { std::chrono::utc_clock::now() }
         , id_{ ++lobby_id }
     {
         build_make_message();
@@ -84,10 +86,10 @@ namespace gl
                      add_component(dpp::component().set_label("Make").
                         set_style(dpp::cos_success).
                         set_id(make_id(lobby_commands::make))
-                    ).add_component(
+                    /*).add_component(
                         dpp::component().set_label("Cancel").
                         set_style(dpp::cos_danger).
-                        set_id(make_id(lobby_commands::cancel))
+                        set_id(make_id(lobby_commands::cancel))*/
                     ).add_component(
                         dpp::component().set_label("Save preset...").
                         set_style(dpp::cos_primary).
@@ -113,28 +115,51 @@ namespace gl
         view_message_.id = mid;
         view_message_.channel_id = source_command_.command.channel_id;
 
-        std::string date = settings.date;
-        if (date == gl::current_date()) date = "Today";
+        std::string begin_date = gl::to_string(gl::gmt_time(settings.begin_time, settings.gmt), "%d/%m/%Y");
+        std::string begin_time = gl::to_string(gl::gmt_time(settings.begin_time, settings.gmt), "%H:%M");
+        std::string end_date = gl::to_string(gl::gmt_time(settings.end_time, settings.gmt), "%d/%m/%Y");
+        std::string end_time = gl::to_string(gl::gmt_time(settings.end_time, settings.gmt), "%H:%M");
 
-        std::string description = "- :video_game: **" + settings.game + (settings.game_mod.empty() ? "" : " [" + settings.game_mod + "]") + "**\n";
-        description += "- :clock10: **" + date + "** at **" + settings.begin_time + (settings.end_time.empty() ? "" : "** to **" + settings.end_time) + "**\n";
+        auto today = std::chrono::floor<std::chrono::days>(std::chrono::utc_clock::now());
+        auto begin_day = std::chrono::floor<std::chrono::days>(settings.begin_time);
+        auto end_day = std::chrono::floor<std::chrono::days>(settings.end_time);
+
+        if (today == begin_day) begin_date = "Today";
+        if (today == end_day) end_date = "";
+
+        if (!end_time.empty()) end_time = " - " + end_time;
+
+        std::string description;
+        if (!settings.game.empty()) description = "- :video_game: **" + settings.game + (settings.game_mod.empty() ? "" : " [" + settings.game_mod + "]") + "**\n";
+        description += "- :calendar_spiral: **" + begin_date + "**\n";
+        description += "- :clock10: **" + begin_time + end_time + "**\n";
         if (!settings.map.empty()) description += "- :map: **" + settings.map + "**\n";
         if (!settings.host.empty()) description += "- :bust_in_silhouette: **<@" + settings.host + ">**\n";
 
         std::string primary_players;
         std::string secondary_players;
+        std::string waiting_players;
         int primary_players_count = 0;
         int secondary_players_count = 0;
+        int waiting_players_count = 0;
         for (const auto& player : players_)
         {
-            if (player.priority == player_priority::primary)
+            if (player->group == player_group::primary)
             {
-                primary_players += std::to_string(primary_players_count + 1) + ". " + player.str() + "\n";
-                ++primary_players_count;
+                if (primary_players_count + waiting_players_count >= settings.max_slots)
+                {
+                    waiting_players += std::to_string(waiting_players_count + 1) + ". " + player->str() + "\n";
+                    ++waiting_players_count;
+                }
+                else
+                {
+                    primary_players += std::to_string(primary_players_count + 1) + ". " + player->str() + "\n";
+                    ++primary_players_count;
+                }
             }
             else
             {
-                secondary_players += std::to_string(secondary_players_count + 1) + ". " + player.str() + "\n";
+                secondary_players += std::to_string(secondary_players_count + 1) + ". " + player->str() + "\n";
                 ++secondary_players_count;
             }
         }
@@ -149,25 +174,37 @@ namespace gl
 
         dpp::embed embed = dpp::embed().
         set_color(dpp::colors::blue_green).
-        set_title(settings.game + " Lobby " + lobby_access).
+        set_title(settings.game + lobby_access).
         //set_author("Among Us Lobby", "", "https://logos-world.net/wp-content/uploads/2021/08/Among-Us-Logo.png").
         //set_author("GameLobby", "https://github.com/arkena00/", "https://avatars.githubusercontent.com/u/4370057?v=4").
         set_description(description).
         set_thumbnail(settings.game_logo).
         add_field(
-               fill_status + " Primary (" + std::to_string(primary_players_count) + "/" + std::to_string(settings.max_slots) + ")",
+               fill_status + " Primary (" + std::to_string(max(settings.max_slots, primary_players_count)) + "/" + std::to_string(settings.max_slots) + ")",
                primary_players,
                true
-        ).
-        add_field(
-                ":recycle: Secondary (" + std::to_string(secondary_players_count) + ")",
-                secondary_players,
-                true
         ).
         set_footer(dpp::embed_footer().
                                       set_text("GameLobby v1.0.0\nJoin as secondary if you are not sure to be present").
                                       set_icon("https://cdn.discordapp.com/app-icons/1100304468244975677/e27284e425960d09cabaa43c30107e57.png?size=256")).
         set_timestamp(time(0));
+
+        if (secondary_players_count > 0)
+        {
+            embed.add_field(
+                ":recycle: Secondary (" + std::to_string(secondary_players_count) + ")",
+                secondary_players,
+                true
+            );
+        }
+        if (waiting_players_count > 0)
+        {
+            embed.add_field(
+                ":clock2: Waiting (" + std::to_string(waiting_players_count) + ")",
+                waiting_players,
+                false
+            );
+        }
 
         view_message_.add_embed(embed);
 
@@ -196,9 +233,9 @@ namespace gl
 
             view_message_.add_component(
                 dpp::component().add_component(
-                    dpp::component().set_label("Remind me").set_emoji("🕙").
+                    dpp::component().set_label("Notify me").set_emoji("🕙").
                     set_style(dpp::cos_secondary).
-                    set_id(make_id("remind"))
+                    set_id(make_id(lobby_commands::notify_options))
                 )
             );
         }
@@ -206,8 +243,16 @@ namespace gl
 
     void lobby::refresh()
     {
-        build_view_message();
-        bot_.message_edit(view_message());
+        if (state_ == lobby_state::idle)
+        {
+            build_make_message();
+            bot_.message_edit(make_message());
+        }
+        else if (state_ == lobby_state::active)
+        {
+            build_view_message();
+            bot_.message_edit(view_message());
+        }
     }
 
     std::string lobby::make_id(const std::string& id) const
@@ -223,7 +268,9 @@ namespace gl
             {
                 auto& message = std::get<dpp::message>(r.value);
                 view_message_.id = message.id;
+                state_ = lobby_state::active;
             }
+            else std::cout << "make error";
         });
     }
 
@@ -256,17 +303,36 @@ namespace gl
 
     void lobby::join(gl::player player)
     {
-        players_.erase(std::remove_if(players_.begin(), players_.end(), [player](const auto& p) { return p.id == player.id; }), players_.end());
-        players_.emplace_back(player);
+        players_.erase(std::remove_if(players_.begin(), players_.end(), [player](const auto& p) { return p->id == player.id; }), players_.end());
+        players_.emplace_back(std::make_unique<gl::player>(player));
         refresh();
     }
 
     void lobby::leave(dpp::snowflake user_id)
     {
-        players_.erase(std::remove_if(players_.begin(), players_.end(), [user_id](const auto& p) { return p.id == user_id; }), players_.end());
+        players_.erase(std::remove_if(players_.begin(), players_.end(), [user_id](const auto& p) { return p->id == user_id; }), players_.end());
         refresh();
     }
 
     dpp::snowflake lobby::id() const { return id_; }
     dpp::snowflake lobby::guild_id() const { return source_command_.command.guild_id; }
+
+    gl::player* lobby::player(dpp::snowflake user_id) const
+    {
+        auto it = std::find_if(players_.begin(), players_.end(), [user_id](const auto& p) { return p->id == user_id; });
+        if (it != players_.end()) return it->get();
+
+        return nullptr;
+    }
+
+    std::vector<std::unique_ptr<gl::player>>& lobby::players() { return players_; }
+    const std::chrono::utc_clock::time_point& lobby::make_time() const { return make_time_; }
+    lobby_state lobby::state() const { return state_; }
+    bool lobby::has_expired() const
+    {
+        auto now = std::chrono::utc_clock::now();
+
+        return ((state() == lobby_state::idle && now - make_time() > core_.lobby_max_idle_duration)
+        || (state() == gl::lobby_state::active && now - make_time() > core_.lobby_max_alive_duration));
+    }
 } // gl
