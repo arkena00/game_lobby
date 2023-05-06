@@ -14,7 +14,7 @@ namespace gl
         , bot_{ core.bot() }
         , database_{ core.database() }
         , source_command_{ std::move(source_command) }
-        , make_time_ { std::chrono::utc_clock::now() }
+        , make_time_ { std::chrono::system_clock::now() }
         , id_{ ++lobby_id }
     {
         build_make_message();
@@ -120,7 +120,7 @@ namespace gl
         std::string end_date = gl::to_string(gl::gmt_time(settings.end_time, settings.gmt), "%d/%m/%Y");
         std::string end_time = gl::to_string(gl::gmt_time(settings.end_time, settings.gmt), "%H:%M");
 
-        auto today = std::chrono::floor<std::chrono::days>(std::chrono::utc_clock::now());
+        auto today = std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now());
         auto begin_day = std::chrono::floor<std::chrono::days>(settings.begin_time);
         auto end_day = std::chrono::floor<std::chrono::days>(settings.end_time);
 
@@ -326,11 +326,11 @@ namespace gl
     }
 
     std::vector<std::unique_ptr<gl::player>>& lobby::players() { return players_; }
-    const std::chrono::utc_clock::time_point& lobby::make_time() const { return make_time_; }
+    const std::chrono::system_clock::time_point& lobby::make_time() const { return make_time_; }
     lobby_state lobby::state() const { return state_; }
     bool lobby::has_expired() const
     {
-        auto now = std::chrono::utc_clock::now();
+        auto now = std::chrono::system_clock::now();
 
         return ((state() == lobby_state::idle && now - make_time() > core_.lobby_max_idle_duration)
         || (state() == gl::lobby_state::active && now - make_time() > core_.lobby_max_alive_duration));

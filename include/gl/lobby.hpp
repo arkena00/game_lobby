@@ -57,8 +57,8 @@ namespace gl
         std::string game_mod;
         int min_slots = 2;
         int max_slots = 10;
-        std::chrono::utc_clock::time_point begin_time;
-        std::chrono::utc_clock::time_point end_time;
+        std::chrono::system_clock::time_point begin_time;
+        std::chrono::system_clock::time_point end_time;
         std::string map;
         std::string host;
         lobby_access access = lobby_access::public_;
@@ -89,7 +89,7 @@ namespace gl
         [[nodiscard]] dpp::snowflake guild_id() const;
         [[nodiscard]] gl::player* player(dpp::snowflake) const;
         std::vector<std::unique_ptr<gl::player>>& players();
-        const std::chrono::utc_clock::time_point& make_time() const;
+        const std::chrono::system_clock::time_point& make_time() const;
         lobby_state state() const;
         bool has_expired() const;
 
@@ -115,6 +115,6 @@ namespace gl
         std::vector<std::unique_ptr<gl::player>> players_;
         int64_t preset_id_ = -1;
         lobby_state state_ = lobby_state::idle;
-        std::chrono::utc_clock::time_point make_time_;
+        std::chrono::system_clock::time_point make_time_;
     };
 } // gl

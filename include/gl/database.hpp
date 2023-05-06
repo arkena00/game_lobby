@@ -15,7 +15,7 @@
 namespace ndb
 {
     template<class Database>
-    struct custom_type<std::chrono::utc_clock::time_point, Database> : basic_type<std::chrono::utc_clock::time_point, ndb::int64_, Database>
+    struct custom_type<std::chrono::system_clock::time_point, Database> : basic_type<std::chrono::system_clock::time_point, ndb::int64_, Database>
     {
         static auto encode(const auto& v)
         {
@@ -24,7 +24,7 @@ namespace ndb
         }
         static auto decode(const auto& v)
         {
-            return std::chrono::utc_clock::time_point{ std::chrono::seconds{ v } };
+            return std::chrono::system_clock::time_point{ std::chrono::seconds{ v } };
         }
     };
 
@@ -41,8 +41,8 @@ ndb_table(lobby_preset,
           ndb_field(access, int),
           ndb_field(min_slots, int),
           ndb_field(max_slots, int),
-          ndb_field(begin_time, std::chrono::utc_clock::time_point),
-          ndb_field(end_time, std::chrono::utc_clock::time_point),
+          ndb_field(begin_time, std::chrono::system_clock::time_point),
+          ndb_field(end_time, std::chrono::system_clock::time_point),
           ndb_field(hostid, std::string, ndb::size<32>)
 )
 

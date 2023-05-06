@@ -7,9 +7,9 @@
 
 namespace gl
 {
-    inline std::string to_string(const std::chrono::utc_clock::time_point& time_point, const std::string& format = "%d/%m/%Y %H:%M")
+    inline std::string to_string(const std::chrono::system_clock::time_point& time_point, const std::string& format = "%d/%m/%Y %H:%M")
     {
-        if (time_point == std::chrono::utc_clock::time_point{}) return "";
+        if (time_point == std::chrono::system_clock::time_point{}) return "";
         return std::vformat("{:" + format + "}", std::make_format_args(time_point));
     }
 
@@ -25,12 +25,12 @@ namespace gl
     inline auto to_time_point(const std::string& str_time, const std::string& format = "%d/%m/%Y %H:%M")
     {
         std::stringstream ss{ str_time };
-        std::chrono::utc_clock::time_point time_point;
+        std::chrono::system_clock::time_point time_point;
         ss >> std::chrono::parse(format, time_point);
         return time_point;
     }
 
-    inline auto gmt_time(const std::chrono::utc_clock::time_point& time_point, int gmt = 0)
+    inline auto gmt_time(const std::chrono::system_clock::time_point& time_point, int gmt = 0)
     {
         return time_point + std::chrono::hours{ gmt };
     }

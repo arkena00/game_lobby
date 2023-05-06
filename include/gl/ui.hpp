@@ -63,9 +63,9 @@ namespace ui
 
         auto str_begin_datetime = gl::to_string(gl::gmt_time(lobby_ptr->settings.begin_time, lobby_ptr->settings.gmt));
         auto str_end_datetime = gl::to_string(gl::gmt_time(lobby_ptr->settings.end_time, lobby_ptr->settings.gmt));
-        if (lobby_ptr->settings.begin_time == std::chrono::utc_clock::time_point{})
-            str_begin_datetime = gl::to_string(gl::gmt_time(std::chrono::utc_clock::now(), lobby_ptr->settings.gmt));
-        if (lobby_ptr->settings.end_time == std::chrono::utc_clock::time_point{}) str_end_datetime = "";
+        if (lobby_ptr->settings.begin_time == std::chrono::system_clock::time_point{})
+            str_begin_datetime = gl::to_string(gl::gmt_time(std::chrono::system_clock::now(), lobby_ptr->settings.gmt));
+        if (lobby_ptr->settings.end_time == std::chrono::system_clock::time_point{}) str_end_datetime = "";
 
         modal.add_component( text_field(gl::lobby_commands::begin_time, "Begin time", str_begin_datetime)
                             .set_placeholder("ex: 24/01/2023 21:00")
