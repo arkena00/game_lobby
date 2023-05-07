@@ -86,10 +86,10 @@ namespace gl
                      add_component(dpp::component().set_label("Make").
                         set_style(dpp::cos_success).
                         set_id(make_id(lobby_commands::make))
-                    /*).add_component(
+                    ).add_component(
                         dpp::component().set_label("Cancel").
                         set_style(dpp::cos_danger).
-                        set_id(make_id(lobby_commands::cancel))*/
+                        set_id(make_id(lobby_commands::cancel))
                     ).add_component(
                         dpp::component().set_label("Save preset...").
                         set_style(dpp::cos_primary).
@@ -115,10 +115,15 @@ namespace gl
         view_message_.id = mid;
         view_message_.channel_id = source_command_.command.channel_id;
 
+        // date
+        if (settings.begin_time == std::chrono::utc_clock::time_point{}) settings.begin_time = std::chrono::utc_clock::now();
+
         std::string begin_date = gl::to_string(gl::gmt_time(settings.begin_time, settings.gmt), "%d/%m/%Y");
         std::string begin_time = gl::to_string(gl::gmt_time(settings.begin_time, settings.gmt), "%H:%M");
         std::string end_date = gl::to_string(gl::gmt_time(settings.end_time, settings.gmt), "%d/%m/%Y");
         std::string end_time = gl::to_string(gl::gmt_time(settings.end_time, settings.gmt), "%H:%M");
+
+        if (settings.end_time == std::chrono::utc_clock::time_point{}) end_time = "";
 
         auto today = std::chrono::floor<std::chrono::days>(std::chrono::utc_clock::now());
         auto begin_day = std::chrono::floor<std::chrono::days>(settings.begin_time);
@@ -126,13 +131,15 @@ namespace gl
 
         if (today == begin_day) begin_date = "Today";
         if (today == end_day) end_date = "";
-
         if (!end_time.empty()) end_time = " - " + end_time;
+
+        std::string gmt = "(GMT";
+        gmt += (settings.gmt >= 0 ? "+" : "-") + std::to_string(settings.gmt) + ")";
 
         std::string description;
         if (!settings.game.empty()) description = "- :video_game: **" + settings.game + (settings.game_mod.empty() ? "" : " [" + settings.game_mod + "]") + "**\n";
         description += "- :calendar_spiral: **" + begin_date + "**\n";
-        description += "- :clock10: **" + begin_time + end_time + "**\n";
+        description += "- :clock10: **" + begin_time + end_time + "** " + gmt + "\n";
         if (!settings.map.empty()) description += "- :map: **" + settings.map + "**\n";
         if (!settings.host.empty()) description += "- :bust_in_silhouette: **<@" + settings.host + ">**\n";
 
@@ -185,7 +192,7 @@ namespace gl
                true
         ).
         set_footer(dpp::embed_footer().
-                                      set_text("GameLobby v1.0.0\nJoin as secondary if you are not sure to be present").
+                                      set_text("GameLobby " + core_.str_version() + "\nJoin as secondary if you are not sure to be present").
                                       set_icon("https://cdn.discordapp.com/app-icons/1100304468244975677/e27284e425960d09cabaa43c30107e57.png?size=256")).
         set_timestamp(time(nullptr));
 

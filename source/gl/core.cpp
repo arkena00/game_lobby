@@ -31,10 +31,11 @@ namespace gl
             {
                 lobbies_.emplace_back(std::make_unique<gl::lobby>(*this, event));
                 lobbies_.back()->settings.gmt = configs_[event.command.guild_id].gmt;
+                update_presence();
 
                 event.reply(lobbies_.back()->make_message());
             }
-            else if (event.command.get_command_name() == "glconfig")
+            else if (event.command.get_command_name() == "gl config")
             {
                 auto gmt = std::get<int64_t>(event.get_parameter("gmt"));
                 database().save_config(event.command.guild_id, gmt);
@@ -84,7 +85,10 @@ namespace gl
                     auto modal = ui::make_notify_options(lobby_ptr, event.custom_id);
                     return event.dialog(modal);
                 }
-                // else if (command_id == lobby_commands::cancel) event.delete_original_response();
+                else if (command_id == lobby_commands::cancel)
+                {
+                    del_lobby(lobby_ptr->id());
+                }
                 else if (command_id == lobby_commands::button_preset_save)
                 {
                     dpp::interaction_modal_response modal(gl::make_id(lobby_ptr, gl::lobby_commands::action_preset_save), "");
@@ -228,6 +232,7 @@ namespace gl
 
         std::iter_swap(it, lobbies_.end() - 1);
         lobbies_.pop_back();
+        update_presence();
     }
 
     gl::lobby* core::lobby(dpp::snowflake guild_id, dpp::snowflake lobby_id)
@@ -246,5 +251,18 @@ namespace gl
         uint64_t lobby_id = std::stoull(custom_id.substr(0, sep));
         std::string id = custom_id.substr(sep + 1);
         return { lobby_id, id };
+    }
+
+    void core::update_presence()
+    {
+        std::string presence_message;
+
+        if (!lobbies().empty()) presence_message = "Lobbies: " + std::to_string(lobbies().size());
+        bot_.set_presence(dpp::presence(dpp::presence_status::ps_online, dpp::activity_type::at_game, presence_message));
+    }
+
+    std::string core::str_version() const
+    {
+        return "v1.0.1";
     }
 } // gl

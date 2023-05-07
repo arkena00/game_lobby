@@ -16,13 +16,15 @@ namespace gl
         void run();
         void notify(dpp::snowflake user_id, const dpp::message&);
         void del_lobby(uint64_t lobby_id);
+        void update_presence();
 
         gl::database& database() { return database_; }
         dpp::cluster& bot() { return bot_; }
         std::vector<std::unique_ptr<gl::lobby>>& lobbies() { return lobbies_; }
         gl::lobby* lobby(dpp::snowflake guild_id, dpp::snowflake lobby_id);
+        std::string str_version() const;
 
-        std::chrono::minutes lobby_max_idle_duration = std::chrono::minutes { 30 };
+        std::chrono::minutes lobby_max_idle_duration = std::chrono::minutes { 15 };
         std::chrono::minutes lobby_max_alive_duration = std::chrono::hours { 24 };
 
     protected:
