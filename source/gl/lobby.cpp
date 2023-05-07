@@ -180,14 +180,14 @@ namespace gl
         set_description(description).
         set_thumbnail(settings.game_logo).
         add_field(
-               fill_status + " Primary (" + std::to_string(std::max(settings.max_slots, primary_players_count)) + "/" + std::to_string(settings.max_slots) + ")",
+               fill_status + " Primary (" + std::to_string(primary_players_count) + "/" + std::to_string(settings.max_slots) + ")",
                primary_players,
                true
         ).
         set_footer(dpp::embed_footer().
                                       set_text("GameLobby v1.0.0\nJoin as secondary if you are not sure to be present").
                                       set_icon("https://cdn.discordapp.com/app-icons/1100304468244975677/e27284e425960d09cabaa43c30107e57.png?size=256")).
-        set_timestamp(time(0));
+        set_timestamp(time(nullptr));
 
         if (secondary_players_count > 0)
         {
@@ -209,9 +209,10 @@ namespace gl
         view_message_.add_embed(embed);
 
         std::string str_ping_roles;
-        for (const auto& role: settings.ping_roles)
+        for (const auto& role : settings.ping_roles)
         {
             str_ping_roles += "<@&" + role + ">";
+            view_message_.allowed_mentions.roles.emplace_back(role);
         }
         view_message_.set_content(str_ping_roles);
 
@@ -303,6 +304,14 @@ namespace gl
 
     void lobby::join(gl::player player)
     {
+        // player already joined as primary
+        if (player.group == player_group::primary)
+        {
+            if (players_.end() != std::find_if(players_.begin(), players_.end(),[player](const auto& p) {
+                return p->group == player_group::primary && p->id == player.id; }
+                                           )) return;
+        }
+
         players_.erase(std::remove_if(players_.begin(), players_.end(), [player](const auto& p) { return p->id == player.id; }), players_.end());
         players_.emplace_back(std::make_unique<gl::player>(player));
         refresh();
