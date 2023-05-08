@@ -5,6 +5,7 @@
 #include <gl/utility.hpp>
 #include <dpp/cluster.h>
 #include <dpp/colors.h>
+#include <chrono>
 #include <utility>
 
 namespace gl
@@ -24,7 +25,7 @@ namespace gl
     {
         make_message_ = dpp::message();
         make_message_.channel_id = source_command_.command.channel_id;
-        make_message_.content = "# Make a lobby";
+        make_message_.content = "**Make a lobby** _(expiration: " + gl::discord_time(make_time() + core_.lobby_max_idle_duration, ":R") + ")_";
         make_message_.set_flags(dpp::message_flags::m_ephemeral);
 
         // game options
@@ -133,15 +134,17 @@ namespace gl
         if (today == end_day) end_date = "";
         if (!end_time.empty()) end_time = " - " + end_time;
 
+        begin_date += " " + gl::discord_time(settings.begin_time, ":R");
+
         std::string gmt = "(GMT";
         gmt += (settings.gmt >= 0 ? "+" : "-") + std::to_string(settings.gmt) + ")";
 
         std::string description;
-        if (!settings.game.empty()) description = "- :video_game: **" + settings.game + (settings.game_mod.empty() ? "" : " [" + settings.game_mod + "]") + "**\n";
-        description += "- :calendar_spiral: **" + begin_date + "**\n";
-        description += "- :clock10: **" + begin_time + end_time + "** " + gmt + "\n";
-        if (!settings.map.empty()) description += "- :map: **" + settings.map + "**\n";
-        if (!settings.host.empty()) description += "- :bust_in_silhouette: **<@" + settings.host + ">**\n";
+        if (!settings.game_mod.empty()) description = ":jigsaw: **" + settings.game_mod + "**\n";
+        description += ":calendar_spiral: **" + begin_date + "**\n";
+        description += ":clock10: **" + begin_time + end_time + "** " + gmt + "\n";
+        if (!settings.map.empty()) description += ":map: **" + settings.map + "**\n";
+        if (!settings.host.empty()) description += ":bust_in_silhouette: **<@" + settings.host + ">**\n";
 
         std::string primary_players;
         std::string secondary_players;
@@ -172,18 +175,20 @@ namespace gl
         }
         for (int i = 0; i < settings.min_slots - primary_players_count; ++i)
         {
-            primary_players += std::to_string(primary_players_count + i + 1) + ". <available slot>\n";
+            primary_players += std::to_string(primary_players_count + i + 1) + ". <required slot>\n";
         }
 
 
         std::string fill_status = primary_players_count >= settings.min_slots ? ":white_check_mark:" : ":question:";
         std::string lobby_access = settings.access == lobby_access::private_ ? ":lock:" : "";
+        std::string title;
+        if (!settings.game.empty()) title = ":video_game: **" + settings.game + "**\n";
 
         dpp::embed embed = dpp::embed().
         set_color(dpp::colors::blue_green).
-        set_title(settings.game + lobby_access).
+        set_title(title + lobby_access).
         //set_author("Among Us Lobby", "", "https://logos-world.net/wp-content/uploads/2021/08/Among-Us-Logo.png").
-        //set_author("GameLobby", "https://github.com/arkena00/", "https://avatars.githubusercontent.com/u/4370057?v=4").
+        set_author("GameLobby", "https://github.com/arkena00/game_lobby/", "https://cdn.discordapp.com/app-icons/1100304468244975677/e27284e425960d09cabaa43c30107e57.png?size=256").
         set_description(description).
         set_thumbnail(settings.game_logo).
         add_field(
@@ -221,9 +226,11 @@ namespace gl
             str_ping_roles += "<@&" + role + ">";
             view_message_.allowed_mentions.roles.emplace_back(role);
         }
-        view_message_.set_content(str_ping_roles);
 
-        if (settings.access == lobby_access::public_)
+        std::string expiration = " _(expiration: " + gl::discord_time(expiration_time(), ":R") + ")_";
+        view_message_.set_content(str_ping_roles + expiration);
+
+        if (settings.access == lobby_access::public_ && state_ == lobby_state::active)
         {
             view_message_.add_component(
                 dpp::component().
@@ -270,16 +277,23 @@ namespace gl
 
     void lobby::make()
     {
+        state_ = lobby_state::active;
         build_view_message();
         bot_.message_create(view_message(), [this](const dpp::confirmation_callback_t& r) {
             if (!r.is_error())
             {
                 auto& message = std::get<dpp::message>(r.value);
                 view_message_.id = message.id;
-                state_ = lobby_state::active;
             }
             else std::cout << "make error";
         });
+    }
+
+    void lobby::end()
+    {
+        state_ = lobby_state::inactive;
+        build_view_message();
+        bot_.message_edit_sync(view_message());
     }
 
     void lobby::load_preset(int64_t preset_id)
@@ -346,9 +360,12 @@ namespace gl
     lobby_state lobby::state() const { return state_; }
     bool lobby::has_expired() const
     {
-        auto now = std::chrono::utc_clock::now();
+        return std::chrono::utc_clock::now() > expiration_time();
+    }
 
-        return ((state() == lobby_state::idle && now - make_time() > core_.lobby_max_idle_duration)
-        || (state() == gl::lobby_state::active && now - make_time() > core_.lobby_max_alive_duration));
+    std::chrono::utc_clock::time_point lobby::expiration_time() const
+    {
+        if (state() == lobby_state::idle) return make_time() + core_.lobby_max_idle_duration;
+        return settings.begin_time + core_.lobby_max_alive_duration;
     }
 } // gl

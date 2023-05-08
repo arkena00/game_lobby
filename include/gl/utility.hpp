@@ -8,6 +8,11 @@
 
 namespace gl
 {
+    inline std::string discord_time(const std::chrono::utc_clock::time_point& time, const std::string& format = "")
+    {
+        return "<t:" + std::to_string(std::chrono::duration_cast<std::chrono::seconds>(time.time_since_epoch()).count()) + format + ">";
+    }
+
     inline std::string to_string(const std::chrono::utc_clock::time_point& time_point, const std::string& format = "%d/%m/%Y %H:%M")
     {
         if (time_point == std::chrono::utc_clock::time_point{}) return "";

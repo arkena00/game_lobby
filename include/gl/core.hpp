@@ -24,8 +24,8 @@ namespace gl
         gl::lobby* lobby(dpp::snowflake guild_id, dpp::snowflake lobby_id);
         std::string str_version() const;
 
-        std::chrono::minutes lobby_max_idle_duration = std::chrono::minutes { 15 };
-        std::chrono::minutes lobby_max_alive_duration = std::chrono::hours { 24 };
+        std::chrono::minutes lobby_max_idle_duration = std::chrono::minutes { 1 };
+        std::chrono::minutes lobby_max_alive_duration = std::chrono::minutes { 2 };
 
     protected:
         static std::tuple<uint64_t, std::string> parse_id(const std::string&);

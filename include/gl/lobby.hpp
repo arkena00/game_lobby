@@ -76,6 +76,7 @@ namespace gl
         void build_view_message();
 
         void make();
+        void end();
 
         void delete_preset();
         void load_preset(int64_t lobby_id);
@@ -92,6 +93,7 @@ namespace gl
         const std::chrono::utc_clock::time_point& make_time() const;
         lobby_state state() const;
         bool has_expired() const;
+        std::chrono::utc_clock::time_point expiration_time() const;
 
         [[nodiscard]] const dpp::message& make_message() const { return make_message_; }
         [[nodiscard]] const dpp::message& view_message() const { return view_message_; }

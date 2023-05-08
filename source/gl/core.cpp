@@ -35,7 +35,7 @@ namespace gl
 
                 event.reply(lobbies_.back()->make_message());
             }
-            else if (event.command.get_command_name() == "gl config")
+            else if (event.command.get_command_name() == "glconfig")
             {
                 auto gmt = std::get<int64_t>(event.get_parameter("gmt"));
                 database().save_config(event.command.guild_id, gmt);
@@ -231,6 +231,7 @@ namespace gl
         if (it == lobbies_.end()) return;
 
         std::iter_swap(it, lobbies_.end() - 1);
+        lobbies_.back()->end();
         lobbies_.pop_back();
         update_presence();
     }
@@ -263,6 +264,6 @@ namespace gl
 
     std::string core::str_version() const
     {
-        return "v1.0.1";
+        return "v1.0.2";
     }
 } // gl
