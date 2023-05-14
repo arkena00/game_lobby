@@ -177,9 +177,13 @@ namespace gl
                         }
                         else if (field.custom_id == lobby_commands::end_time)
                         {
-                            // remove gmt, store as UTC
-                            auto gmt = configs_[event.command.guild_id].gmt;
-                            lobby_ptr->settings.end_time = gl::gmt_time(gl::to_time_point(std::get<std::string>(field.value)), -gmt);
+                            std::string str_time = std::get<std::string>(field.value);
+                            if (!str_time.empty())
+                            {
+                                // remove gmt, store as UTC
+                                auto gmt = configs_[event.command.guild_id].gmt;
+                                lobby_ptr->settings.end_time = gl::gmt_time(gl::to_time_point(std::get<std::string>(field.value)), -gmt);
+                            }
                         }
                         else if (field.custom_id == lobby_commands::host)
                             lobby_ptr->settings.host = std::get<std::string>(field.value);
