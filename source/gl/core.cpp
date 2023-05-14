@@ -16,13 +16,16 @@ namespace gl
         bot_.on_ready([&](const dpp::ready_t& event) {
             if (dpp::run_once<struct register_bot__commands>())
             {
-                bot_.global_command_create(dpp::slashcommand("gl", "Make lobby", bot_.me.id));
+                std::vector<dpp::slashcommand> commands;
+                commands.emplace_back("gl", "Make lobby", bot_.me.id);
 
                 dpp::slashcommand config("glconfig", "Configure", bot_.me.id);
                 config.add_option(
                         dpp::command_option(dpp::co_integer, "gmt", "Enter your time zone", true)
                         );
-                bot_.global_command_create(config);
+
+                commands.emplace_back(std::move(config));
+                bot_.global_bulk_command_create(commands);
             }
         });
 
@@ -38,6 +41,7 @@ namespace gl
             else if (event.command.get_command_name() == "glconfig")
             {
                 auto gmt = std::get<int64_t>(event.get_parameter("gmt"));
+                configs_[event.command.guild_id].gmt = gmt;
                 database().save_config(event.command.guild_id, gmt);
 
                 dpp::message message;
@@ -258,12 +262,12 @@ namespace gl
     {
         std::string presence_message;
 
-        if (!lobbies().empty()) presence_message = "Lobbies: " + std::to_string(lobbies().size());
+        if (!lobbies().empty()) presence_message = "Lobbies: " + std::to_string(lobbies().size()) + " | use /gl";
         bot_.set_presence(dpp::presence(dpp::presence_status::ps_online, dpp::activity_type::at_game, presence_message));
     }
 
     std::string core::str_version() const
     {
-        return "v1.0.2";
+        return "v1.0.3";
     }
 } // gl
