@@ -120,9 +120,9 @@ namespace gl
         if (settings.begin_time == std::chrono::utc_clock::time_point{}) settings.begin_time = std::chrono::utc_clock::now();
 
         std::string begin_date = gl::to_string(gl::gmt_time(settings.begin_time, settings.gmt), "%d/%m/%Y");
-        std::string begin_time = gl::to_string(gl::gmt_time(settings.begin_time, settings.gmt), "%H:%M");
+        std::string begin_time = gl::discord_time(settings.begin_time, ":t");
         std::string end_date = gl::to_string(gl::gmt_time(settings.end_time, settings.gmt), "%d/%m/%Y");
-        std::string end_time = gl::to_string(gl::gmt_time(settings.end_time, settings.gmt), "%H:%M");
+        std::string end_time = gl::discord_time(settings.end_time, ":t");
 
         if (settings.end_time == std::chrono::utc_clock::time_point{}) end_time = "";
 

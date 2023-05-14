@@ -38,8 +38,7 @@ namespace gl
 
     inline auto gmt_time(const std::chrono::utc_clock::time_point& time_point, int gmt = 0)
     {
-        // conversion has an error delta of 25s, dunno why, fix it
-        return time_point + std::chrono::hours{ gmt } + std::chrono::seconds{ 25 };
+        return time_point + std::chrono::hours{ gmt };
     }
 
     inline std::string make_id(lobby* lobby_ptr, const std::string& id)
