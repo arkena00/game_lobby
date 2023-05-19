@@ -16,6 +16,7 @@ namespace gl
         void run();
         void notify(dpp::snowflake user_id, const dpp::message&);
         void del_lobby(uint64_t lobby_id);
+        void restart();
         void update_presence();
 
         gl::database& database() { return database_; }

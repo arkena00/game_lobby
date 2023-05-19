@@ -225,7 +225,14 @@ namespace gl
         std::thread t{ [this]{ reminder_.run(); } };
         t.detach();
 
-        bot_.start(dpp::st_wait);
+        try
+        {
+            bot_.start(dpp::st_wait);
+        } catch (const std::exception& e)
+        {
+            std::cout << "Bot exception: " << e.what();
+            restart();
+        }
     }
 
     void core::notify(dpp::snowflake user_id, const dpp::message& message)
@@ -262,6 +269,11 @@ namespace gl
         return { lobby_id, id };
     }
 
+    void core::restart()
+    {
+        bot_.start();
+    }
+
     void core::update_presence()
     {
         std::string presence_message;
@@ -272,6 +284,6 @@ namespace gl
 
     std::string core::str_version() const
     {
-        return "v1.0.3";
+        return "v1.0.4";
     }
 } // gl
