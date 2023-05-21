@@ -228,9 +228,9 @@ namespace gl
         try
         {
             bot_.start(dpp::st_wait);
-        } catch (const std::exception& e)
+        } catch (...)
         {
-            std::cout << "Bot exception: " << e.what();
+            std::cout << "Bot exception";
             restart();
         }
     }
@@ -278,12 +278,21 @@ namespace gl
     {
         std::string presence_message;
 
-        if (!lobbies().empty()) presence_message = "Lobbies: " + std::to_string(lobbies().size()) + " | use /gl";
+        if (!lobbies().empty()) presence_message = "Lobbies: " + std::to_string(lobbies().size());
         bot_.set_presence(dpp::presence(dpp::presence_status::ps_online, dpp::activity_type::at_game, presence_message));
     }
 
     std::string core::str_version() const
     {
-        return "v1.0.4";
+        return "v1.0.5";
+    }
+
+    void core::error(const std::string& message)
+    {
+        bot_.log(dpp::loglevel::ll_error, message);
+    }
+    void core::log(const std::string& message)
+    {
+        bot_.log(dpp::loglevel::ll_info, message);
     }
 } // gl

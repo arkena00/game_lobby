@@ -17,6 +17,7 @@ namespace gl
 
         void add(const gl::lobby* lobby, const dpp::interaction& source_command, int duration, bool notify_primary = false);
         [[noreturn]] void run();
+        void restart();
 
     private:
         gl::core& core_;

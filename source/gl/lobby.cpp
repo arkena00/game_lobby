@@ -285,7 +285,7 @@ namespace gl
                 auto& message = std::get<dpp::message>(r.value);
                 view_message_.id = message.id;
             }
-            else std::cout << "make error";
+            else std::cout << "Make error: " << r.get_error().message;
         });
     }
 
