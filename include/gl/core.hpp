@@ -18,6 +18,8 @@ namespace gl
         void del_lobby(uint64_t lobby_id);
         void restart();
         void update_presence();
+        void log(const std::string&);
+        void error(const std::string&);
 
         gl::database& database() { return database_; }
         dpp::cluster& bot() { return bot_; }
