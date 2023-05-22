@@ -96,8 +96,9 @@ namespace ui
                 set_text_style(dpp::text_short);
         };
         modal.add_component( text_field(gl::lobby_commands::notify_timer, "Minutes before lobby start", "5").set_required(true) );
-        modal.add_row();
-        modal.add_component( text_field(gl::lobby_commands::notify_primary, "Moved to primary (y = yes | n = no)", "n", 1) );
+        // todo
+        //modal.add_row();
+        //modal.add_component( text_field(gl::lobby_commands::notify_primary, "Moved to primary (y = yes | n = no)", "n", 1) );
 
         return modal;
     }

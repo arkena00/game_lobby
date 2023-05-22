@@ -18,6 +18,7 @@ namespace gl
             {
                 std::vector<dpp::slashcommand> commands;
                 commands.emplace_back("gl", "Make lobby", bot_.me.id);
+                commands.emplace_back("gledit", "Edit the last lobby", bot_.me.id);
 
                 dpp::slashcommand config("glconfig", "Configure", bot_.me.id);
                 config.add_option(
@@ -37,6 +38,18 @@ namespace gl
                 update_presence();
 
                 event.reply(lobbies_.back()->make_message());
+            }
+            else if (event.command.get_command_name() == "gledit")
+            {
+                auto guild_id = event.command.guild_id;
+                auto it = std::find_if(lobbies_.rbegin(), lobbies_.rend(), [guild_id](const auto& lobby) { return lobby->guild_id() == guild_id; });
+                if (it != lobbies_.rend())
+                {
+                    auto& lobby = *it;
+                    lobby->begin_editing();
+                    event.reply(lobby->edit_message());
+                }
+                else event.reply("No lobby found");
             }
             else if (event.command.get_command_name() == "glconfig")
             {
@@ -72,7 +85,13 @@ namespace gl
                 {
                     for (const auto& player : event.values)
                         lobby_ptr->join(gl::player{ std::stoull(player) });
-                    event.reply(dpp::interaction_response_type::ir_update_message, lobby_ptr->make_message());
+                    event.reply();
+                }
+                else if (command_id == lobby_commands::players_remove)
+                {
+                    for (const auto& player : event.values)
+                        lobby_ptr->leave(player);
+                    event.reply();
                 }
                 else event.reply();
             }
@@ -88,10 +107,6 @@ namespace gl
                 {
                     auto modal = ui::make_notify_options(lobby_ptr, event.custom_id);
                     return event.dialog(modal);
-                }
-                else if (command_id == lobby_commands::cancel)
-                {
-                    del_lobby(lobby_ptr->id());
                 }
                 else if (command_id == lobby_commands::button_preset_save)
                 {
@@ -211,6 +226,14 @@ namespace gl
                      reminder_.add(lobby_ptr, event.command, notify_time, notify_primary);
 
                      return event.reply();
+                }
+
+                // edit
+                if (lobby_ptr->state() == gl::lobby_state::active)
+                {
+                     lobby_ptr->refresh();
+                     event.reply();
+                     return;
                 }
 
                 lobby_ptr->update_preset();

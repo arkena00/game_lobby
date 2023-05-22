@@ -20,8 +20,10 @@ namespace gl
         static std::string preset = "preset";
         static std::string access = "access";
         static std::string players = "players";
+        static std::string players_remove = "players_remove";
         static std::string pinged_roles = "pinged_roles";
         static std::string make = "make";
+        static std::string edit = "edit";
         static std::string cancel = "cancel";
         static std::string button_preset_delete = "bp_delete";
         static std::string button_preset_save = "bp_save";
@@ -73,10 +75,13 @@ namespace gl
         explicit lobby(gl::core&, dpp::slashcommand_t );
 
         void build_make_message();
+        void build_edit_message();
         void build_view_message();
 
         void make();
         void end();
+
+        void begin_editing();
 
         void delete_preset();
         void load_preset(int64_t lobby_id);
@@ -96,6 +101,7 @@ namespace gl
         std::chrono::utc_clock::time_point expiration_time() const;
 
         [[nodiscard]] const dpp::message& make_message() const { return make_message_; }
+        [[nodiscard]] const dpp::message& edit_message() const { return edit_message_; }
         [[nodiscard]] const dpp::message& view_message() const { return view_message_; }
 
         void refresh();
@@ -111,6 +117,7 @@ namespace gl
         dpp::cluster& bot_;
         dpp::slashcommand_t source_command_;
         dpp::message make_message_;
+        dpp::message edit_message_;
         dpp::message view_message_;
 
         uint64_t id_;
