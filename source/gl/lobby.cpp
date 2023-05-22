@@ -88,10 +88,6 @@ namespace gl
                         set_style(dpp::cos_success).
                         set_id(make_id(lobby_commands::make))
                     ).add_component(
-                        dpp::component().set_label("Cancel").
-                        set_style(dpp::cos_danger).
-                        set_id(make_id(lobby_commands::cancel))
-                    ).add_component(
                         dpp::component().set_label("Save preset...").
                         set_style(dpp::cos_primary).
                         set_id(make_id(lobby_commands::button_preset_save))
@@ -107,6 +103,48 @@ namespace gl
         make_message_.add_component(comp_players);
         make_message_.add_component(comp_ping_roles);
         make_message_.add_component(comp_buttons);
+    }
+
+    void lobby::build_edit_message()
+    {
+        edit_message_ = dpp::message();
+        edit_message_.channel_id = source_command_.command.channel_id;
+
+        edit_message_.content = "**Edit a lobby** " + gl::message_link(guild_id(), view_message_.channel_id, view_message_.id);
+        edit_message_.set_flags(dpp::message_flags::m_ephemeral);
+
+        // game options
+        auto comp_options =
+            dpp::component().
+                     add_component(dpp::component().set_label("Game options...").
+                        set_emoji("⚙️").
+                        set_style(dpp::cos_success).
+                        set_id(make_id(lobby_commands::game_options))
+                    ).add_component(dpp::component().set_label("Lobby options...").
+                        set_emoji("⚙️").
+                        set_style(dpp::cos_success).
+                        set_id(make_id(lobby_commands::lobby_options))
+                    );
+
+        // players
+        auto comp_players_add =
+        dpp::component().add_component(
+            dpp::component().set_type(dpp::cot_user_selectmenu).
+            set_placeholder("Add players").
+            set_max_values(25).
+            set_id(make_id(lobby_commands::players))
+        );
+        auto comp_players_remove =
+        dpp::component().add_component(
+            dpp::component().set_type(dpp::cot_user_selectmenu).
+            set_placeholder("Remove players").
+            set_max_values(25).
+            set_id(make_id(lobby_commands::players_remove))
+        );
+
+        edit_message_.add_component(comp_options);
+        edit_message_.add_component(comp_players_add);
+        edit_message_.add_component(comp_players_remove);
     }
 
     void lobby::build_view_message()
@@ -367,5 +405,10 @@ namespace gl
     {
         if (state() == lobby_state::idle) return make_time() + core_.lobby_max_idle_duration;
         return settings.begin_time + core_.lobby_max_alive_duration;
+    }
+
+    void lobby::begin_editing()
+    {
+        build_edit_message();
     }
 } // gl
