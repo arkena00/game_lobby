@@ -25,23 +25,26 @@ namespace gl
 
     void scheduler::run()
     {
-         try {
-            while (true)
+        while (true)
+        {
+
+            try
             {
                 for (int i = 0; i < core_.lobbies().size(); ++i)
                 {
-                    auto& lobby = core_.lobbies()[i];
+                    auto &lobby  = core_.lobbies()[i];
                     auto gmt_now = gl::gmt_time(std::chrono::utc_clock::now(), lobby->settings.gmt);
 
                     // delete old lobby
                     if (lobby->has_expired())
                     {
+                        std::lock_guard<std::mutex> lock{ mutex };
                         core_.del_lobby(lobby->id());
                         --i;
                         continue;
                     }
 
-                    for (const auto& player : lobby->players())
+                    for (const auto &player: lobby->players())
                     {
                         if (player->notify_time == std::chrono::utc_clock::time_point{}) continue;
 
@@ -52,15 +55,15 @@ namespace gl
                             auto utc_time = std::chrono::duration_cast<std::chrono::seconds>(lobby->settings.begin_time.time_since_epoch()).count();
 
                             dpp::message message;
-                            std::string gid = std::to_string(lobby->view_message().guild_id);
-                            std::string cid = std::to_string(lobby->view_message().channel_id);
-                            std::string mid = std::to_string(lobby->view_message().id);
+                            std::string gid         = std::to_string(lobby->view_message().guild_id);
+                            std::string cid         = std::to_string(lobby->view_message().channel_id);
+                            std::string mid         = std::to_string(lobby->view_message().id);
                             std::string message_url = "https://discord.com/channels/" + gid + "/" + cid + "/" + mid;
 
                             message.content = "The lobby ** " + message_url + " ** will start soon **<t:" + std::to_string(utc_time) + ":R>**";
                             core_.notify(player->id, message);
 
-                            std::lock_guard<std::mutex> lock{ mutex };
+                            std::lock_guard<std::mutex> lock{mutex};
                             player->notify_time = {};
                         }
                     }
@@ -68,11 +71,14 @@ namespace gl
 
                 std::this_thread::sleep_for(std::chrono::seconds(10));
             }
-
-        } catch (...)
-        {
-            core_.error("Scheduler exception");
-            restart();
+            catch (const std::exception &e)
+            {
+                core_.error("Scheduler exception: " + std::string(e.what()));
+            }
+            catch (...)
+            {
+                core_.error("Scheduler exception: unknown");
+            }
         }
     }
 
