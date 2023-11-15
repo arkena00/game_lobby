@@ -24,8 +24,12 @@ namespace gl
                 config.add_option(
                         dpp::command_option(dpp::co_integer, "gmt", "Enter your time zone", true)
                         );
-
                 commands.emplace_back(std::move(config));
+
+                dpp::slashcommand edit_players("edit_players", "Edit Players", bot_.me.id);
+                edit_players.set_type(dpp::ctxm_message);
+                commands.emplace_back(std::move(edit_players));
+
                 bot_.global_bulk_command_create(commands);
             }
         });
@@ -64,6 +68,43 @@ namespace gl
             }
         });
 
+        bot_.on_message_context_menu([this](const dpp::message_context_menu_t& event) {
+
+            if (auto* lobby_ptr = lobby_from_message(event.ctx_message.guild_id, event.ctx_message.id))
+            {
+                if (event.command.get_command_name() == "edit_players")
+                {
+                    auto comp_players =
+                    dpp::component().add_component(
+                        dpp::component().set_type(dpp::cot_user_selectmenu).
+                        set_placeholder("Players").
+                        set_max_values(25).
+                        set_id(make_id(lobby_ptr, lobby_commands::edit_players_select))
+                    );
+                    auto comp_buttons =
+                    dpp::component().
+                             add_component(dpp::component().set_label("Add (primary)").
+                                set_style(dpp::cos_success).
+                                set_id(make_id(lobby_ptr, lobby_commands::edit_players_add_primary))
+                            ).
+                             add_component(dpp::component().set_label("Add (secondary)").
+                                set_style(dpp::cos_success).
+                                set_id(make_id(lobby_ptr, lobby_commands::edit_players_add_secondary))
+                            ).
+                            add_component(dpp::component().set_label("Remove").
+                                set_style(dpp::cos_danger).
+                                set_id(make_id(lobby_ptr, lobby_commands::edit_players_remove))
+                            );
+
+                    dpp::message message;
+                    message.add_component(comp_players);
+                    message.add_component(comp_buttons);
+                    message.set_flags(dpp::message_flags::m_ephemeral);
+                    event.reply(message);
+                }
+            }
+        });
+
         bot_.on_select_click([this](const dpp::select_click_t& event) {
             auto [lobby_id, command_id] = parse_id(event.custom_id);
 
@@ -80,6 +121,15 @@ namespace gl
                     for (const auto& role_id: event.values)
                         lobby_ptr->settings.ping_roles.emplace_back(role_id);
                     event.reply(dpp::interaction_response_type::ir_update_message, lobby_ptr->make_message());
+                }
+                else if (command_id == lobby_commands::edit_players_select)
+                {
+                    lobby_ptr->edit_selected_players.clear();
+                    for (const auto& player_id : event.values)
+                    {
+                        lobby_ptr->edit_selected_players.emplace(std::stoull(player_id));
+                    }
+                    event.reply();
                 }
                 else if (command_id == lobby_commands::players)
                 {
@@ -141,6 +191,18 @@ namespace gl
                 {
                     auto modal = ui::make_lobby_options(lobby_ptr, event.custom_id);
                     return event.dialog(modal);
+                }
+                else if (command_id == lobby_commands::edit_players_add_primary)
+                {
+                    lobby_ptr->edit_players_add(gl::player_group::primary);
+                }
+                else if (command_id == lobby_commands::edit_players_add_secondary)
+                {
+                    lobby_ptr->edit_players_add(gl::player_group::secondary);
+                }
+                else if (command_id == lobby_commands::edit_players_remove)
+                {
+                    lobby_ptr->edit_remove_selected();
                 }
                 event.reply();
             }
@@ -280,7 +342,15 @@ namespace gl
         {
             if (lobby->guild_id() == guild_id && lobby->id() == lobby_id) return lobby.get();
         }
+        return nullptr;
+    }
 
+    gl::lobby* core::lobby_from_message(dpp::snowflake guild_id, dpp::snowflake message_id)
+    {
+        for (const auto& lobby : lobbies_)
+        {
+            if (lobby->guild_id() == guild_id && lobby->message_id() == message_id) return lobby.get();
+        }
         return nullptr;
     }
 
@@ -307,7 +377,7 @@ namespace gl
 
     std::string core::str_version() const
     {
-        return "v1.0.5";
+        return "v1.0.6";
     }
 
     void core::error(const std::string& message)

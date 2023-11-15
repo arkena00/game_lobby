@@ -361,7 +361,7 @@ namespace gl
         database_.update(preset_id_, *this);
     }
 
-    void lobby::join(gl::player player)
+    void lobby::join(gl::player player, bool should_refresh)
     {
         // player already joined as primary
         if (player.group == player_group::primary)
@@ -373,17 +373,18 @@ namespace gl
 
         players_.erase(std::remove_if(players_.begin(), players_.end(), [player](const auto& p) { return p->id == player.id; }), players_.end());
         players_.emplace_back(std::make_unique<gl::player>(player));
-        refresh();
+        if (should_refresh) refresh();
     }
 
-    void lobby::leave(dpp::snowflake user_id)
+    void lobby::leave(dpp::snowflake user_id, bool should_refresh)
     {
         players_.erase(std::remove_if(players_.begin(), players_.end(), [user_id](const auto& p) { return p->id == user_id; }), players_.end());
-        refresh();
+        if (should_refresh) refresh();
     }
 
     dpp::snowflake lobby::id() const { return id_; }
     dpp::snowflake lobby::guild_id() const { return source_command_.command.guild_id; }
+    dpp::snowflake lobby::message_id() const { return view_message_.id; }
 
     gl::player* lobby::player(dpp::snowflake user_id) const
     {
@@ -410,5 +411,23 @@ namespace gl
     void lobby::begin_editing()
     {
         build_edit_message();
+    }
+
+    void lobby::edit_remove_selected()
+    {
+        for (const auto& player_id : edit_selected_players)
+        {
+            leave(player_id, false);
+        }
+        refresh();
+    }
+
+    void lobby::edit_players_add(player_group group)
+    {
+        for (const auto& player_id : edit_selected_players)
+        {
+            join(gl::player{ player_id, group }, false);
+        }
+        refresh();
     }
 } // gl

@@ -25,6 +25,7 @@ namespace gl
         dpp::cluster& bot() { return bot_; }
         std::vector<std::unique_ptr<gl::lobby>>& lobbies() { return lobbies_; }
         gl::lobby* lobby(dpp::snowflake guild_id, dpp::snowflake lobby_id);
+        gl::lobby* lobby_from_message(dpp::snowflake guild_id, dpp::snowflake message_id);
         std::string str_version() const;
 
         std::chrono::minutes lobby_max_idle_duration = std::chrono::minutes { 5 };

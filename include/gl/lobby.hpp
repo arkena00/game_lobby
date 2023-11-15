@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <unordered_set>
 #include <gl/player.hpp>
 #include <dpp/message.h>
 #include <dpp/dispatcher.h>
@@ -23,11 +24,15 @@ namespace gl
         static std::string players_remove = "players_remove";
         static std::string pinged_roles = "pinged_roles";
         static std::string make = "make";
-        static std::string edit = "edit";
-        static std::string cancel = "cancel";
         static std::string button_preset_delete = "bp_delete";
         static std::string button_preset_save = "bp_save";
         static std::string action_preset_save = "ap_save";
+
+
+        static std::string edit_players_select = "edit_players_select";
+        static std::string edit_players_add_primary = "edit_players_add_primary";
+        static std::string edit_players_add_secondary = "edit_players_add_secondary";
+        static std::string edit_players_remove = "edit_players_remove";
 
         //
 
@@ -82,17 +87,19 @@ namespace gl
         void end();
 
         void begin_editing();
+        void edit_remove_selected();
 
         void delete_preset();
         void load_preset(int64_t lobby_id);
         void save_preset(const std::string& name);
         void update_preset();
 
-        void join(gl::player);
-        void leave(dpp::snowflake);
+        void join(gl::player, bool should_refresh = true);
+        void leave(dpp::snowflake, bool should_refresh = true);
 
         [[nodiscard]] dpp::snowflake id() const;
         [[nodiscard]] dpp::snowflake guild_id() const;
+        [[nodiscard]] dpp::snowflake message_id() const;
         [[nodiscard]] gl::player* player(dpp::snowflake) const;
         std::vector<std::unique_ptr<gl::player>>& players();
         const std::chrono::utc_clock::time_point& make_time() const;
@@ -108,6 +115,10 @@ namespace gl
         [[nodiscard]] std::string make_id(const std::string&) const;
 
         lobby_settings settings;
+
+        std::unordered_set<dpp::snowflake> edit_selected_players;
+
+        void edit_players_add(player_group group);
 
     private:
         static inline uint64_t lobby_id = 0;
